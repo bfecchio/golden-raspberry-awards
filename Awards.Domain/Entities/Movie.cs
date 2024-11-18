@@ -3,7 +3,7 @@ using Awards.Domain.Core.Utility;
 
 namespace Awards.Domain.Entities
 {
-    public sealed class Movie : AggregateRoot
+    public class Movie : AggregateRoot
     {
         #region Properties
 
@@ -16,6 +16,9 @@ namespace Awards.Domain.Entities
         #endregion
 
         #region Constructors
+
+        protected Movie()
+        { }
 
         public Movie(string title, int year, string producers, string studios, bool winner)
         {

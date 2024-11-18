@@ -1,10 +1,9 @@
-﻿using Awards.Persistence;
+﻿using Awards.Application.Core.Abstractions.Importation;
+using Awards.Domain.Entities;
+using Awards.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.OpenApi.Models;
-using System;
-using System.IO;
-using System.Reflection;
 
 namespace Awards.Api.Extensions
 {
@@ -28,10 +27,16 @@ namespace Awards.Api.Extensions
 
         internal static IApplicationBuilder EnsureDatabaseCreated(this IApplicationBuilder builder)
         {
-            using var serviceScope = builder.ApplicationServices.CreateScope();
-            using var dbContext = serviceScope.ServiceProvider.GetRequiredService<AwardsDbContext>();
+            using (var serviceScope = builder.ApplicationServices.CreateScope())
+            {
+                var seedService = serviceScope.ServiceProvider.GetRequiredService<ISeedService>();
+                var dbContext = serviceScope.ServiceProvider.GetRequiredService<AwardsDbContext>();                
 
-            dbContext.Database.EnsureCreated();
+                dbContext.Database.EnsureCreated();
+                
+                dbContext.Set<Movie>().AddRange(seedService.Load());
+                dbContext.SaveChanges();
+            }                        
 
             return builder;
         }

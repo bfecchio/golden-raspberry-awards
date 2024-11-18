@@ -1,9 +1,10 @@
-﻿using System.Threading.Tasks;
+﻿using Awards.Domain.Entities;
+using System.Collections.Generic;
 
 namespace Awards.Application.Core.Abstractions.Importation
 {
     public interface ISeedService
     {
-        Task Load();
+        List<Movie> Load();
     }
 }
