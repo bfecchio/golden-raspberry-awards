@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,37 +33,42 @@ namespace Awards.Application.Producers.Queries.GetProducerAwardIntervals
         public async Task<Maybe<ProducerAwardIntervalsResponse>> Handle(GetProducerAwardIntervalsQuery request, CancellationToken cancellationToken)
         {
             // Filtra os filmes vencedores e organiza os dados necessários
-            var winners = await _dbContext.Set<Movie>().AsNoTracking()
-                .Where(m => m.Winner)
-                .Select(m => new { m.Year, Producer = m.Producers })
-                .OrderBy(m => m.Year) // Garante ordenação por ano para cálculo de intervalos
-                .ToListAsync(cancellationToken);
+            var winners = (await _dbContext.Set<Movie>().AsNoTracking()
+                .Where(a => a.Winner)
+                .ToListAsync(cancellationToken))
+                .Select(a => new { a.Year, Producers = Regex.Split(a.Producers, @", | and ").Select(p => p.Trim()) });
 
             // Agrupa por produtor e calcula os intervalos de premiação
-            var producerIntervals = winners
-                .GroupBy(m => m.Producer)
+            var producerWins = winners
+                .SelectMany(a => a.Producers.Select(p => new { Producer = p, a.Year }))
+                .GroupBy(p => p.Producer)
                 .Where(g => g.Count() > 1) // Considera apenas produtores com múltiplas vitórias
-                .Select(g => g
-                    .OrderBy(m => m.Year)
-                    .Zip(g.OrderBy(m => m.Year).Skip(1), (previous, next) =>
-                        new AwardIntervalResponse
-                        {
-                            Producer = g.Key,
-                            Interval = next.Year - previous.Year,
-                            PreviousWin = previous.Year,
-                            FollowingWin = next.Year
-                        })
-                    )
-                .SelectMany(intervals => intervals)
+                .Select(g => new
+                {
+                    Producer = g.Key,
+                    Intervals = g
+                        .OrderBy(a => a.Year)
+                        .Zip(g.OrderBy(a => a.Year).Skip(1), (prev, next) =>
+                            new AwardIntervalResponse
+                            {
+                                Producer = g.Key,
+                                Interval = next.Year - prev.Year,
+                                PreviousWin = prev.Year,
+                                FollowingWin = next.Year
+                            })
+                        .ToList()
+                })
                 .ToList();
 
             // Encontra o menor e maior intervalo
-            var minInterval = producerIntervals
+            var minInterval = producerWins
+                .SelectMany(p => p.Intervals)
                 .OrderBy(i => i.Interval)
                 .GroupBy(i => i.Interval)
                 .FirstOrDefault()?.ToList() ?? new List<AwardIntervalResponse>();
 
-            var maxInterval = producerIntervals
+            var maxInterval = producerWins
+                .SelectMany(p => p.Intervals)
                 .OrderByDescending(i => i.Interval)
                 .GroupBy(i => i.Interval)
                 .FirstOrDefault()?.ToList() ?? new List<AwardIntervalResponse>();

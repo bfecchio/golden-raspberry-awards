@@ -1,13 +1,11 @@
-﻿using Awards.Api.Contracts;
+﻿using Awards.Api.Controllers;
 using Awards.Api.Tests.SeedWork;
 using Awards.Contracts.Producers;
 using FluentAssertions;
+using Microsoft.AspNetCore.TestHost;
 using System;
-using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.TestHost;
-using Awards.Api.Controllers;
 
 namespace Awards.Api.Tests.Scenarios
 {
@@ -35,8 +33,12 @@ namespace Awards.Api.Tests.Scenarios
             
             responseContent.Should().NotBeNull();
 
-            responseContent.Min.Should().Contain(r => r.Producer == "Producer 1" && r.Interval == 1);
-            responseContent.Max.Should().Contain(r => r.Producer == "Producer 2" && r.Interval == 5);
+            responseContent.Min.Should()
+                .Contain(r => r.Producer == "Producer 1" && r.Interval == 1).And
+                .Contain(r => r.Producer == "Producer 2" && r.Interval == 1);
+
+            responseContent.Max.Should()
+                .Contain(r => r.Producer == "Producer 2" && r.Interval == 5);
         }
     }
 }
